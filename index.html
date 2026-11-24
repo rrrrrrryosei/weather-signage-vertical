@@ -1037,8 +1037,22 @@
       transition: opacity 0.35s linear;
       will-change: opacity;
     }
+    .leaflet-radarPane-pane {
+      filter: blur(1.5px) saturate(1.2);
+      pointer-events: none;
+    }
     .leaflet-radarPane-pane .leaflet-layer {
-      transition: opacity 0.4s ease;
+      transition: opacity 0.25s linear;
+      will-change: opacity;
+    }
+    .leaflet-outlinePane-pane {
+      mix-blend-mode: screen;
+      opacity: 0.30;
+      filter: grayscale(100%) contrast(1.6) brightness(1.15);
+      pointer-events: none;
+    }
+    .leaflet-outlinePane-pane.invert-mode {
+      filter: invert(1) grayscale(100%) contrast(1.6) brightness(0.85);
     }
 
     .user-loc-marker {
@@ -1665,7 +1679,7 @@
         loopHoldEndMs: 2200,
         cloudOpacityLive: 0.78,
         cloudOpacityForecast: 0.78,
-        radarOpacity: 0.88,
+        radarOpacity: 0.60,
         nightDimStartHour: 0,
         nightDimEndHour: 6,
         quakeWakeMinScale: 30,
@@ -2408,7 +2422,8 @@
         activeCloudIdx: -1,
         loopStartEpochMs: Date.now(),
         rafId: null,
-        retryTimer: null
+        retryTimer: null,
+        fadeOutTimer: null
       };
 
       function parseJmaUtc(str) {
@@ -2452,6 +2467,9 @@
         const radarPane = map.createPane('radarPane');
         radarPane.style.zIndex = '420';
         radarPane.style.pointerEvents = 'none';
+        const outlinePane = map.createPane('outlinePane');
+        outlinePane.style.zIndex = '460';
+        outlinePane.style.pointerEvents = 'none';
         const labelPane = map.createPane('labelPane');
         labelPane.style.zIndex = '550';
         labelPane.style.pointerEvents = 'none';
@@ -2476,13 +2494,21 @@
 
         let baseIdx = 0;
         let baseLayer = null;
+        let outlineLayer = null;
         function mountBaseLayer(i) {
           if (baseLayer) map.removeLayer(baseLayer);
+          if (outlineLayer) map.removeLayer(outlineLayer);
           const src = baseSources[i];
           basePane.classList.toggle('invert-mode', src.invert);
+          outlinePane.classList.toggle('invert-mode', src.invert);
           let errCount = 0;
           baseLayer = L.tileLayer(src.url, {
             pane: 'basePane',
+            maxNativeZoom: src.maxNativeZoom,
+            maxZoom: 16
+          }).addTo(map);
+          outlineLayer = L.tileLayer(src.url, {
+            pane: 'outlinePane',
             maxNativeZoom: src.maxNativeZoom,
             maxZoom: 16
           }).addTo(map);
@@ -2638,6 +2664,10 @@
         }
 
         const replaceFrames = (newFrames) => {
+          if (RADAR.fadeOutTimer) {
+            clearTimeout(RADAR.fadeOutTimer);
+            RADAR.fadeOutTimer = null;
+          }
           RADAR.frames.forEach((f) => {
             if (f.layer && RADAR.map.hasLayer(f.layer)) RADAR.map.removeLayer(f.layer);
           });
@@ -2677,7 +2707,7 @@
             const url = `https://www.jma.go.jp/bosai/jmatile/data/nowc/${f.basetime}/none/${f.validtime}/surf/hrpns/{z}/{x}/{y}.png`;
             const layer = L.tileLayer(url, {
               pane: 'radarPane',
-              opacity: 0,
+              opacity: 0.001,
               minNativeZoom: 4,
               maxNativeZoom: 6,
               maxZoom: 14
@@ -2709,7 +2739,7 @@
             const url = `${host}${f.path}/256/{z}/{x}/{y}/2/1_1.png`;
             const layer = L.tileLayer(url, {
               pane: 'radarPane',
-              opacity: 0,
+              opacity: 0.001,
               maxNativeZoom: 7,
               maxZoom: 14
             }).addTo(RADAR.map);
@@ -2730,10 +2760,28 @@
       function setRadarFrame(idx) {
         const n = RADAR.frames.length;
         if (!n || idx < 0 || idx >= n || idx === RADAR.activeIdx) return;
+        const prevIdx = RADAR.activeIdx;
         RADAR.activeIdx = idx;
-        for (let i = 0; i < n; i++) {
-          RADAR.frames[i].layer.setOpacity(i === idx ? CONFIG.radarOpacity : 0);
+
+        RADAR.frames[idx].layer.setOpacity(CONFIG.radarOpacity);
+
+        if (RADAR.fadeOutTimer) {
+          clearTimeout(RADAR.fadeOutTimer);
+          RADAR.fadeOutTimer = null;
         }
+        if (prevIdx >= 0 && prevIdx < n) {
+          RADAR.fadeOutTimer = setTimeout(() => {
+            for (let i = 0; i < RADAR.frames.length; i++) {
+              if (i !== RADAR.activeIdx) RADAR.frames[i].layer.setOpacity(0.001);
+            }
+            RADAR.fadeOutTimer = null;
+          }, 220);
+        } else {
+          for (let i = 0; i < n; i++) {
+            if (i !== idx) RADAR.frames[i].layer.setOpacity(0.001);
+          }
+        }
+
         const cur = RADAR.frames[idx];
         const curEl = document.getElementById('tl-cur');
         curEl.textContent = cur.timeStr;
