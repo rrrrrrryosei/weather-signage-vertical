@@ -1034,7 +1034,8 @@
       pointer-events: none;
     }
     .leaflet-cloudPane-pane .leaflet-layer {
-      transition: opacity 0.45s ease;
+      transition: opacity 0.35s linear;
+      will-change: opacity;
     }
     .leaflet-radarPane-pane .leaflet-layer {
       transition: opacity 0.4s ease;
@@ -1663,7 +1664,7 @@
         loopStepMs: 900,
         loopHoldEndMs: 2200,
         cloudOpacityLive: 0.78,
-        cloudOpacityForecast: 0.54,
+        cloudOpacityForecast: 0.78,
         radarOpacity: 0.88,
         nightDimStartHour: 0,
         nightDimEndHour: 6,
@@ -2582,7 +2583,7 @@
             const url = `https://www.jma.go.jp/bosai/himawari/data/satimg/${f.basetime}/${area}/${f.validtime}/B13/TBB/{z}/{x}/{y}.jpg`;
             const layer = L.tileLayer(url, {
               pane: 'cloudPane',
-              opacity: 0,
+              opacity: 0.001,
               minNativeZoom: minZ,
               maxNativeZoom: maxZ,
               maxZoom: 12
@@ -2614,10 +2615,18 @@
             if (clouds[i].ts <= targetTs + 5 * 60000) bestIdx = i;
           }
         }
+        if (bestIdx === RADAR.activeCloudIdx) return;
+
+        const prevIdx = RADAR.activeCloudIdx;
         const targetOpacity = isForecast ? CONFIG.cloudOpacityForecast : CONFIG.cloudOpacityLive;
-        clouds.forEach((c, i) => {
-          c.layer.setOpacity(i === bestIdx ? targetOpacity : 0);
-        });
+        if (prevIdx >= 0 && prevIdx < clouds.length) {
+          clouds[prevIdx].layer.setOpacity(0.001);
+        } else {
+          clouds.forEach((c, i) => {
+            if (i !== bestIdx) c.layer.setOpacity(0.001);
+          });
+        }
+        clouds[bestIdx].layer.setOpacity(targetOpacity);
         RADAR.activeCloudIdx = bestIdx;
       }
 
@@ -2670,7 +2679,7 @@
               pane: 'radarPane',
               opacity: 0,
               minNativeZoom: 4,
-              maxNativeZoom: 10,
+              maxNativeZoom: 6,
               maxZoom: 14
             }).addTo(RADAR.map);
             return {
