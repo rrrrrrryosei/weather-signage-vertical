@@ -1028,31 +1028,31 @@
     .leaflet-basePane-pane.invert-mode {
       filter: invert(1) sepia(0.35) hue-rotate(185deg) saturate(1.65) brightness(0.84) contrast(1.16);
     }
-    .leaflet-cloudPane-pane {
+    .leaflet-cloud-pane {
       mix-blend-mode: screen;
       filter: grayscale(100%) contrast(2.08) brightness(1.10);
       pointer-events: none;
     }
-    .leaflet-cloudPane-pane .leaflet-layer {
+    .leaflet-cloud-pane .leaflet-layer {
       transition: opacity 0.35s linear;
       will-change: opacity;
     }
-    .leaflet-radarPane-pane {
+    .leaflet-radar-pane {
       filter: blur(1.5px) saturate(1.2);
       pointer-events: none;
     }
-    .leaflet-radarPane-pane .leaflet-layer {
+    .leaflet-radar-pane .leaflet-layer {
       transition: opacity 0.25s linear;
       will-change: opacity;
     }
-    .leaflet-outlinePane-pane {
+    .leaflet-outline-pane {
       mix-blend-mode: screen;
-      opacity: 0.30;
-      filter: grayscale(100%) contrast(1.6) brightness(1.15);
+      opacity: 0.32;
+      filter: grayscale(100%) contrast(1.6) brightness(1.05);
       pointer-events: none;
     }
-    .leaflet-outlinePane-pane.invert-mode {
-      filter: invert(1) grayscale(100%) contrast(1.6) brightness(0.85);
+    .leaflet-outline-pane.invert-mode {
+      filter: invert(1) grayscale(100%) contrast(1.6) brightness(0.95);
     }
 
     .user-loc-marker {
@@ -2466,9 +2466,13 @@
         cloudPane.style.pointerEvents = 'none';
         const radarPane = map.createPane('radarPane');
         radarPane.style.zIndex = '420';
+        radarPane.style.filter = 'blur(1.5px) saturate(1.2)';
         radarPane.style.pointerEvents = 'none';
         const outlinePane = map.createPane('outlinePane');
         outlinePane.style.zIndex = '460';
+        outlinePane.style.mixBlendMode = 'screen';
+        outlinePane.style.opacity = '0.32';
+        outlinePane.style.filter = 'grayscale(100%) contrast(1.6) brightness(1.05)';
         outlinePane.style.pointerEvents = 'none';
         const labelPane = map.createPane('labelPane');
         labelPane.style.zIndex = '550';
@@ -2501,6 +2505,9 @@
           const src = baseSources[i];
           basePane.classList.toggle('invert-mode', src.invert);
           outlinePane.classList.toggle('invert-mode', src.invert);
+          outlinePane.style.filter = src.invert
+            ? 'invert(1) grayscale(100%) contrast(1.6) brightness(0.95)'
+            : 'grayscale(100%) contrast(1.6) brightness(1.05)';
           let errCount = 0;
           baseLayer = L.tileLayer(src.url, {
             pane: 'basePane',
